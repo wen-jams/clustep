@@ -3,7 +3,7 @@ from sys import path as syspath
 from bisect import bisect_left
 from os import path
 from argparse import ArgumentParser as parser
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import time
 
 import numpy as np
@@ -29,36 +29,36 @@ def main():
 def generate_cluster():
   if(gas):
     if(dm):
-      print "defining the positions"
+      print("defining the positions")
       coords, radii_gas, radii_dm = set_positions()
-      print "defining the velocities"
+      print("defining the velocities")
       vels = set_velocities(radii_dm)
-      print "calculating the temperatures"
+      print("calculating the temperatures")
       U = set_temperatures(radii_gas)
       rho = np.array([opt.dehnen_density(i, M_gas, a_gas, gamma_gas)
                       for i in radii_gas])
-      print "writing output file..."
+      print("writing output file...")
       return [coords, vels, U, rho]
     else:
-      print "defining the positions"
+      print("defining the positions")
       coords, radii_gas = set_positions()
       vels = set_velocities()
-      print "calculating the temperatures"
+      print("calculating the temperatures")
       U = set_temperatures(radii_gas)
       rho = np.zeros(N_gas)
-      print "writing output file..."
+      print("writing output file...")
       return [coords, vels, U, rho]
   else:
-    print "defining the positions"
+    print("defining the positions")
     coords, radii_dm = set_positions()
-    print "defining the velocities"
+    print("defining the velocities")
     vels = set_velocities(radii_dm)
-    print "writing output file..."
+    print("writing output file...")
     return [coords, vels]
 
 
 def init():
-  global gas, dm, output
+  global gas, dm, output, file_format
   global M_dm, a_dm, N_dm, M_gas, a_gas, N_gas, Z
   global truncation_radius, gamma_gas, gamma_dm
   flags = parser(description="Generates an initial conditions file\
@@ -72,14 +72,18 @@ def init():
            action='store_true')
   flags.add_argument('-o', help='The name of the output file.',
            metavar="init.dat", default="init.dat")
+  flags.add_argument('-f', help="Format of the output file. \
+          either 'gadget2' or 'hdf5'.",
+          metavar='gadget2', default='gadget2')
   args = flags.parse_args()
   output = args.o
+  file_format = args.f
   if not path.isfile("params_cluster.ini"):
-    print "params_cluster.ini missing."
+    print("params_cluster.ini missing.")
     exit(0)
   if args.no_dm:
     if args.no_gas:
-      print "Neither gas or dark matter were selected!"
+      print("Neither gas or dark matter were selected!")
       exit(0)
     else:
       gas = True
@@ -181,13 +185,13 @@ def set_velocities(radii_dm=None):
     for i in np.linspace(potential(0)*0.99, 0, 1000):
       DF_tabulated.append([i, DF(i)])
     DF_tabulated = np.array(DF_tabulated)
-    print "done with DF tabulation"
+    print("done with DF tabulation")
     t0 = time.time()
     time_count = 0
     for i in np.arange(len(radii_dm)):
       vels.append(sample_velocity(radii_dm[i], DF_tabulated))
       if(int(time.time()-t0) > time_count):
-        print 'set velocity', i, 'of', N_dm
+        print('set velocity', i, 'of', N_dm)
         time_count += 1
   vels = np.array(vels, order='C')
   vel_COM = sum(vels) # The velocity of the center of mass.
@@ -312,19 +316,19 @@ def write_input_file(cluster_data):
       masses_dm.fill((M_dm*factor_dm) / N_dm)
       masses = np.concatenate((masses_gas, masses_dm))
       ids = np.arange(1, N_gas + N_dm + 1)
-      write_snapshot(n_part=[N_gas, N_dm, 0, 0, 0, 0], outfile=output,
+      write_snapshot(n_part=[N_gas, N_dm, 0, 0, 0, 0], outfile=output, file_format=file_format,
              data_list=[coords, vels, ids, masses, U, rho, smooths, Zs])
     else:
       masses = masses_gas
       ids = np.arange(1, N_gas + 1)
-      write_snapshot(n_part=[N_gas, 0, 0, 0, 0, 0], outfile=output,
+      write_snapshot(n_part=[N_gas, 0, 0, 0, 0, 0], outfile=output, file_format=file_format,
              data_list=[coords, vels, ids, masses, U, rho, smooths, Zs])
   else:
     ids = np.arange(1, N_dm + 1)
     masses_dm = np.empty(N_dm)
     masses_dm.fill(M_dm / N_dm)
     masses = masses_dm
-    write_snapshot(n_part=[0, N_dm, 0, 0, 0, 0], outfile=output, 
+    write_snapshot(n_part=[0, N_dm, 0, 0, 0, 0], outfile=output, file_format=file_format,
             data_list=[coords, vels, ids, masses])
 
 

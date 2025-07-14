@@ -2,7 +2,7 @@ import sys
 import os
 import struct
 import numpy as np
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 
 
 config = ConfigParser()
@@ -11,16 +11,21 @@ config.read("params_cluster.ini")
 
 def read_header(folder, n_part):
   h_data = []
+  fmt = ''
   for j in n_part: # n_part
     h_data.append(int(j))
+    fmt += 'i'
   for j in config.get('header', 'mass_array').split(','):
     h_data.append(float(j))
+    fmt += 'd'
   h_data.append(config.getfloat('header', 'time'))
   h_data.append(config.getfloat('header', 'redshift'))
   h_data.append(config.getint('header', 'flag_sfr'))
   h_data.append(config.getint('header', 'flag_feedback'))
+  fmt += 'ddii'
   for j in n_part: # n_part_total, assuming equal to n_part
     h_data.append(int(j))
+    fmt += 'i'
   h_data.append(config.getint('header', 'flag_cooling'))
   h_data.append(config.getint('header', 'num_files'))
   h_data.append(config.getfloat('header', 'boxsize'))
@@ -29,14 +34,16 @@ def read_header(folder, n_part):
   h_data.append(config.getfloat('header', 'hubble_param'))
   h_data.append(config.getint('header', 'flag_age'))
   h_data.append(config.getint('header', 'flag_metals'))
-
+  fmt += 'iiddddii'
   # blank, present in the header
   for i in np.arange(88):
     h_data.append('\0')
-  s = struct.Struct('iiiiii dddddd d d i i iiiiii i i dddd ii cccc\
+    fmt += 'c'
+  fmt_str = 'iiiiii dddddd d d i i iiiiii i i dddd ii cccc\
            cccccccccccccccccccccccccccccccccccccccccccccccccc\
-           cccccccccccccccccccccccccccccccccc')
-  packed_data = s.pack(*h_data)
+           cccccccccccccccccccccccccccccccccc'
+  s = struct.Struct(fmt)
+  packed_data = s.pack(*[bytes(d, "utf-8") if type(d) == str else d for d in h_data])
 
   # Need raw h_data as well - D. Rennehan
   return packed_data, h_data
@@ -72,8 +79,8 @@ def write_snapshot(n_part, folder=None, data_list=None, outfile='init.dat',
   folder = os.getcwd()
 
   # Erasing the output file before opening it.
-  pos_data = data_list[0]
-  vel_data = data_list[1]
+  pos_data = data_list[0].reshape(-1, 3)
+  vel_data = data_list[1].reshape(-1, 3)
   ID_data = data_list[2]
   mass_data = data_list[3]
   if (N_gas > 0):
@@ -169,7 +176,7 @@ def write_snapshot(n_part, folder=None, data_list=None, outfile='init.dat',
       end = start + n_part[i]
       running_idx += n_part[i]
 
-      assert np.shape(pos_data[start:end]) == (n_part[i], 3)
+      assert np.shape(pos_data[start:end]) == (n_part[i], 3), f"{np.shape(pos_data[start:end])}"
       assert np.shape(vel_data[start:end]) == (n_part[i], 3)
       assert np.shape(ID_data[start:end]) == (n_part[i], )
       assert np.shape(mass_data[start:end]) == (n_part[i], )

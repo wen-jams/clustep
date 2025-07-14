@@ -4,4 +4,4 @@ main:
 	$(COMPILER) $(FLAGS)
 	if [ -d build ]; then rm -r build; fi
 clean:
-	rm optimized_functions.so
+	rm optimized_functions*.so
